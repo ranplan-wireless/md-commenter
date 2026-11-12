@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { CommentThreadStatus } from "azure-devops-extension-api/Git/Git";
-import { createLineThread, MdFile, PrContext, replyToThread, setThreadStatus } from "../services/adoClient";
+// Ranplan change (2026): editComment / removeComment for the signed-in user's own comments.
+import { createLineThread, deleteComment, MdFile, PrContext, replyToThread, setThreadStatus, updateComment } from "../services/adoClient";
 import { SourceAnchor } from "../markdown/sourceMap";
 import { t } from "../i18n";
 import { errorText } from "../util";
@@ -62,5 +63,34 @@ export function useThreadActions(
     [ctx, reload, flash]
   );
 
-  return { posting, submit, reply, changeStatus };
+  /** Saves new text for a comment; returns whether it worked so the editor can close. */
+  const editComment = useCallback(
+    async (threadId: number, commentId: number, content: string): Promise<boolean> => {
+      if (!ctx) return false;
+      try {
+        await updateComment(ctx, threadId, commentId, content);
+        await reload();
+        return true;
+      } catch (e) {
+        flash(t("editFailed", { message: errorText(e) }));
+        return false;
+      }
+    },
+    [ctx, reload, flash]
+  );
+
+  const removeComment = useCallback(
+    async (threadId: number, commentId: number) => {
+      if (!ctx) return;
+      try {
+        await deleteComment(ctx, threadId, commentId);
+        await reload();
+      } catch (e) {
+        flash(t("deleteFailed", { message: errorText(e) }));
+      }
+    },
+    [ctx, reload, flash]
+  );
+
+  return { posting, submit, reply, changeStatus, editComment, removeComment };
 }

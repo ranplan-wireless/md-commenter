@@ -1,3 +1,5 @@
+// Ranplan changes (2026): English progress messages, current user id, edit/delete own comments,
+// and threads that are not on a line are returned too (see threadSplit.ts).
 import * as SDK from "azure-devops-extension-sdk";
 import { getClient } from "azure-devops-extension-api";
 import { CommonServiceIds, IHostNavigationService, ILocationService, IProjectPageService } from "azure-devops-extension-api/Common/CommonServices";
@@ -15,6 +17,10 @@ import {
 } from "azure-devops-extension-api/Git/Git";
 import { SourceAnchor } from "../markdown/sourceMap";
 import { buildLineThread } from "./threadPayload";
+import { ReviewThread, toReviewThreads } from "./threadSplit";
+import { t } from "../i18n";
+
+export type { ReviewThread };
 
 export interface PrContext {
   project: string;
@@ -26,20 +32,14 @@ export interface PrContext {
   commitId: string;
   /** Merge base (left side of the full PR diff), used to detect added lines. */
   baseCommitId: string;
+  /** Signed-in user's identity id, to offer edit/delete on their own comments. */
+  userId: string;
 }
 
 export interface MdFile {
   path: string;
   changeTrackingId: number;
   isNew: boolean;
-}
-
-export interface ReviewThread {
-  id: number;
-  status: CommentThreadStatus;
-  startLine: number;
-  endLine: number;
-  comments: Comment[];
 }
 
 const MD_EXT = /\.(md|markdown|mdx)$/i;
@@ -58,7 +58,7 @@ function toNumber(value: unknown): number | undefined {
  * and the host's repository service.
  */
 export async function resolvePrContext(report: (stage: string) => void = () => undefined): Promise<PrContext> {
-  report("Leyendo la configuración de la pestaña");
+  report(t("stageReadingConfig"));
   const config = (SDK.getConfiguration() ?? {}) as any;
   console.info("[MD Commenter] tab configuration keys:", Object.keys(config));
 
@@ -67,7 +67,7 @@ export async function resolvePrContext(report: (stage: string) => void = () => u
   let project: string | undefined = config.pullRequest?.repository?.project?.id ?? config.projectId;
 
   if (!pullRequestId) {
-    report("Obteniendo el ID del PR desde la URL");
+    report(t("stagePrIdFromUrl"));
     const nav = await SDK.getService<IHostNavigationService>(CommonServiceIds.HostNavigationService);
     const route = await nav.getPageRoute();
     const rv = route.routeValues ?? {};
@@ -75,25 +75,25 @@ export async function resolvePrContext(report: (stage: string) => void = () => u
     pullRequestId = toNumber(rv.pullRequestId ?? rv.parameters);
   }
   if (!repositoryId) {
-    report("Obteniendo el repositorio actual");
+    report(t("stageRepository"));
     const repoService = await SDK.getService<IVersionControlRepositoryService>(GitServiceIds.VersionControlRepositoryService);
     const repo = await repoService.getCurrentGitRepository();
     repositoryId = repo?.id;
     project ??= repo?.project?.id;
   }
   if (!project) {
-    report("Obteniendo el proyecto actual");
+    report(t("stageProject"));
     const projectService = await SDK.getService<IProjectPageService>(CommonServiceIds.ProjectPageService);
     project = (await projectService.getProject())?.id;
   }
   if (!pullRequestId || !repositoryId || !project) {
-    throw new Error("No se pudo identificar el Pull Request actual (PR, repositorio o proyecto).");
+    throw new Error(t("prNotIdentified"));
   }
 
   console.info("[MD Commenter] resolved:", { pullRequestId, repositoryId, project });
-  report(`Cargando el PR #${pullRequestId}`);
+  report(t("stageLoadingPr", { id: pullRequestId }));
   const pullRequest = await git().getPullRequest(repositoryId, pullRequestId, project);
-  report(`Cargando las iteraciones del PR #${pullRequestId}`);
+  report(t("stageLoadingIterations", { id: pullRequestId }));
   const iterations = await git().getPullRequestIterations(repositoryId, pullRequestId, project);
   const latest = iterations[iterations.length - 1];
 
@@ -104,7 +104,8 @@ export async function resolvePrContext(report: (stage: string) => void = () => u
     pullRequest,
     iterationId: latest.id,
     commitId: latest.sourceRefCommit?.commitId ?? pullRequest.lastMergeSourceCommit.commitId,
-    baseCommitId: latest.commonRefCommit?.commitId ?? pullRequest.lastMergeTargetCommit?.commitId ?? ""
+    baseCommitId: latest.commonRefCommit?.commitId ?? pullRequest.lastMergeTargetCommit?.commitId ?? "",
+    userId: SDK.getUser()?.id ?? ""
   };
 }
 
@@ -158,19 +159,13 @@ export async function getImageObjectUrl(ctx: PrContext, path: string): Promise<s
   return URL.createObjectURL(new Blob([buffer], { type: MIME[ext] ?? "application/octet-stream" }));
 }
 
-/** Line-anchored threads on a file, positions tracked to the latest iteration. */
+/**
+ * The file's threads (positions tracked to the latest iteration) plus the PR's general threads.
+ * Threads not on a current line are kept, with their scope, so the panel can list them.
+ */
 export async function getFileThreads(ctx: PrContext, path: string): Promise<ReviewThread[]> {
   const threads = await git().getThreads(ctx.repositoryId, ctx.pullRequestId, ctx.project, ctx.iterationId);
-  return threads
-    .filter((t) => !t.isDeleted && t.threadContext?.filePath === path && t.threadContext.rightFileStart)
-    .map((t) => ({
-      id: t.id,
-      status: t.status,
-      startLine: t.threadContext.rightFileStart.line,
-      endLine: t.threadContext.rightFileEnd?.line ?? t.threadContext.rightFileStart.line,
-      comments: (t.comments ?? []).filter((c) => !c.isDeleted && c.commentType !== CommentType.System)
-    }))
-    .filter((t) => t.comments.length > 0);
+  return toReviewThreads(threads, path);
 }
 
 /** Creates a thread anchored to the source lines/columns, exactly like commenting in the diff view. */
@@ -182,6 +177,16 @@ export async function createLineThread(ctx: PrContext, file: MdFile, anchor: Sou
 export function replyToThread(ctx: PrContext, threadId: number, parentCommentId: number, content: string): Promise<Comment> {
   const comment = { parentCommentId, content, commentType: CommentType.Text } as Comment;
   return git().createComment(comment, ctx.repositoryId, ctx.pullRequestId, threadId, ctx.project);
+}
+
+/** Changes the text of a comment; Azure DevOps only allows this for the comment's own author. */
+export function updateComment(ctx: PrContext, threadId: number, commentId: number, content: string): Promise<Comment> {
+  return git().updateComment({ content } as Comment, ctx.repositoryId, ctx.pullRequestId, threadId, commentId, ctx.project);
+}
+
+/** Deletes a comment; Azure DevOps only allows this for the comment's own author. */
+export function deleteComment(ctx: PrContext, threadId: number, commentId: number): Promise<void> {
+  return git().deleteComment(ctx.repositoryId, ctx.pullRequestId, threadId, commentId, ctx.project);
 }
 
 export async function setThreadStatus(ctx: PrContext, threadId: number, status: CommentThreadStatus): Promise<void> {

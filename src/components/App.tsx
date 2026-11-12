@@ -1,6 +1,10 @@
+// Ranplan changes (2026): all hooks run before the early returns (a blank tab otherwise);
+// Refresh re-reads the PR and keeps the open file; the document HTML is sanitised; threads not
+// on a current line go to their own list; edit/delete of own comments.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeAnchor, resolveRepoPath, splitLines } from "../markdown/sourceMap";
 import { md } from "../markdown/renderer";
+import { sanitizeHtml } from "../markdown/sanitize";
 import { MdFile, openInFilesTab, ReviewThread } from "../services/adoClient";
 import { BlockPick, MarkdownPreview } from "./MarkdownPreview";
 import { isOpen } from "./ThreadView";
@@ -55,14 +59,15 @@ function Resizer({ side, panel, label, badge }: ResizerProps) {
 
 export function App() {
   const { toast, flash } = useToast();
-  const { ctx, files, stage, error: prError } = usePrContext();
+  const { ctx, files, stage, error: prError, refreshing, refresh } = usePrContext();
 
   const [file, setFile] = useState<MdFile>();
-  useEffect(() => setFile(files[0]), [files]);
+  // Keep the open file across a refresh when it is still in the PR.
+  useEffect(() => setFile((prev) => (prev && files.find((f) => f.path === prev.path)) || files[0]), [files]);
 
   const { text, threads, addedLines, removedLines, loading, error: fileError, reload } = useFileData(ctx, file);
   const resolveImage = useImageResolver(ctx, file);
-  const { posting, submit, reply, changeStatus } = useThreadActions(ctx, reload, flash);
+  const { posting, submit, reply, changeStatus, editComment, removeComment } = useThreadActions(ctx, reload, flash);
 
   const [pick, setPick] = useState<PickState | null>(null);
   const [draft, setDraft] = useState("");
@@ -77,11 +82,17 @@ export function App() {
   const right = usePanel("mdr.right", 360, 260, 640, "right");
 
   const lines = useMemo(() => splitLines(text), [text]);
-  const html = useMemo(() => md.render(text), [text]);
+  const html = useMemo(() => sanitizeHtml(md.render(text)), [text]);
+  const lineThreads = useMemo(() => threads.filter((th) => th.scope === "line"), [threads]);
   const visibleThreads = useMemo(
-    () => (showResolved ? threads : threads.filter((th) => isOpen(th.status))),
+    () => (showResolved ? lineThreads : lineThreads.filter((th) => isOpen(th.status))),
+    [lineThreads, showResolved]
+  );
+  const looseThreads = useMemo(
+    () => threads.filter((th) => th.scope !== "line" && (showResolved || isOpen(th.status))),
     [threads, showResolved]
   );
+  const openThreads = useMemo(() => threads.filter((th) => isOpen(th.status)).length, [threads]);
   const pickThreads = useMemo(
     () => (pick ? visibleThreads.filter((th) => th.startLine <= pick.anchor.endLine && th.endLine >= pick.anchor.startLine) : []),
     [pick, visibleThreads]
@@ -112,10 +123,17 @@ export function App() {
     if (await submit(file, pick.anchor, draft.trim())) setDraft("");
   };
 
+  // Re-reads the PR (new pushes included); the file text and threads reload because ctx changes.
+  const onRefresh = async () => {
+    const before = ctx?.iterationId;
+    const result = await refresh();
+    if (result.error) flash(t("refreshFailed", { message: result.error }));
+    else if (result.ctx && before !== undefined && result.ctx.iterationId !== before) flash(t("updatedToLatest"));
+  };
+
+  // Early returns only after every hook above has run, so the hook order never changes.
   if (prError && !ctx) return <div className="mdr-empty mdr-error">{prError}</div>;
   if (ctx && !files.length) return <div className="mdr-empty">{t("noMarkdownFiles")}</div>;
-
-  const openThreads = useMemo(() => threads.filter((th) => isOpen(th.status)).length, [threads]);
 
   const gridVars = {
     "--mdr-left": `${left.open ? left.width : 0}px`,
@@ -136,8 +154,9 @@ export function App() {
           ctx={ctx}
           showResolved={showResolved}
           loading={loading}
+          refreshing={refreshing}
           onToggleResolved={setShowResolved}
-          onRefresh={reload}
+          onRefresh={onRefresh}
           onOpenInFiles={() => ctx && file && openInFilesTab(ctx, file.path)}
         />
         <div className="mdr-hint">{t("pickHint")}</div>
@@ -166,7 +185,9 @@ export function App() {
         lines={lines}
         pickThreads={pickThreads}
         visibleThreads={visibleThreads}
+        looseThreads={looseThreads}
         showResolved={showResolved}
+        userId={ctx?.userId}
         draft={draft}
         posting={posting}
         draftRef={draftRef}
@@ -175,6 +196,8 @@ export function App() {
         onSubmit={onSubmit}
         onReply={reply}
         onStatus={changeStatus}
+        onEdit={editComment}
+        onDelete={removeComment}
         onFocus={focusThread}
       />
 

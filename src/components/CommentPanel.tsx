@@ -1,3 +1,5 @@
+// Ranplan changes (2026): a "Not on a line" section lists whole-PR, whole-file and removed-line
+// threads; edit/delete handlers and the user id are passed to each thread.
 import React, { Ref } from "react";
 import { CommentThreadStatus } from "azure-devops-extension-api/Git/Git";
 import { ReviewThread } from "../services/adoClient";
@@ -11,7 +13,10 @@ interface Props {
   lines: string[];
   pickThreads: ReviewThread[];
   visibleThreads: ReviewThread[];
+  /** Threads not on a current line (already filtered by "Show resolved"). */
+  looseThreads: ReviewThread[];
   showResolved: boolean;
+  userId?: string;
   draft: string;
   posting: boolean;
   draftRef: Ref<HTMLTextAreaElement>;
@@ -20,14 +25,29 @@ interface Props {
   onSubmit(): void;
   onReply(threadId: number, parentCommentId: number, text: string): Promise<void>;
   onStatus(threadId: number, status: CommentThreadStatus): Promise<void>;
+  onEdit(threadId: number, commentId: number, text: string): Promise<boolean>;
+  onDelete(threadId: number, commentId: number): Promise<void>;
   onFocus(thread: ReviewThread): void;
 }
 
 /** Right panel: either the picked block (excerpt + its threads + a new-comment draft) or the file's full thread list. */
 export function CommentPanel({
-  pick, lines, pickThreads, visibleThreads, showResolved,
-  draft, posting, draftRef, onClosePick, onDraftChange, onSubmit, onReply, onStatus, onFocus
+  pick, lines, pickThreads, visibleThreads, looseThreads, showResolved, userId,
+  draft, posting, draftRef, onClosePick, onDraftChange, onSubmit, onReply, onStatus, onEdit, onDelete, onFocus
 }: Props) {
+  const threadView = (thread: ReviewThread) => (
+    <ThreadView
+      key={thread.id}
+      thread={thread}
+      userId={userId}
+      onReply={onReply}
+      onStatus={onStatus}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      onFocus={onFocus}
+    />
+  );
+
   return (
     <aside className="mdr-panel">
       {pick ? (
@@ -41,9 +61,7 @@ export function CommentPanel({
             <button className="mdr-icon-btn" onClick={onClosePick} title={t("close")}>×</button>
           </div>
           <Excerpt lines={lines} anchor={pick.anchor} />
-          {pickThreads.map((thread) => (
-            <ThreadView key={thread.id} thread={thread} onReply={onReply} onStatus={onStatus} onFocus={onFocus} />
-          ))}
+          {pickThreads.map(threadView)}
           <div className="mdr-new">
             <textarea
               ref={draftRef}
@@ -65,9 +83,13 @@ export function CommentPanel({
         <>
           <div className="mdr-section-title">{t("fileComments", { count: visibleThreads.length })}</div>
           {visibleThreads.length === 0 && <div className="mdr-muted">{t("noComments", { scope: showResolved ? "" : t("scopeActive") })}</div>}
-          {visibleThreads.map((thread) => (
-            <ThreadView key={thread.id} thread={thread} onReply={onReply} onStatus={onStatus} onFocus={onFocus} />
-          ))}
+          {visibleThreads.map(threadView)}
+          {looseThreads.length > 0 && (
+            <>
+              <div className="mdr-section-title mdr-section-gap">{t("notOnLine", { count: looseThreads.length })}</div>
+              {looseThreads.map(threadView)}
+            </>
+          )}
         </>
       )}
     </aside>

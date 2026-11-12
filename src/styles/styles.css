@@ -207,6 +207,13 @@ body { background: var(--mdr-bg); color: var(--mdr-fg); font: 14px/1.5 var(--mdr
 .mdr-btn:disabled { opacity: 0.5; cursor: default; }
 .mdr-link { background: none; border: 0; padding: 0; font: 12px var(--mdr-mono); color: var(--mdr-accent); cursor: pointer; }
 
+/* Ranplan changes (2026): edit/delete links, where a thread sits when not on a line, section gap. */
+.mdr-comment-tools { display: flex; gap: 10px; align-items: center; margin-top: 4px; font-size: 12px; color: var(--mdr-muted); }
+.mdr-link.danger { color: #c50f1f; }
+.mdr-link:disabled { opacity: 0.5; cursor: default; }
+.mdr-scope { font-size: 12px; color: var(--mdr-muted); }
+.mdr-section-gap { margin-top: 16px; }
+
 .mdr-empty { padding: 48px 24px; text-align: center; color: var(--mdr-muted); }
 .mdr-error { color: #d13438; }
 .mdr-muted { color: var(--mdr-muted); font-size: 13px; }

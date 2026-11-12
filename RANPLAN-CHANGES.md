@@ -21,5 +21,13 @@ Every modified file carries a "Ranplan change(s) (2026)" note at the top.
 6. **Edit and delete your own comments.** Only on comments whose author is the signed-in user;
    Delete asks for confirmation. Same permissions as before (`vso.code`, `vso.threads_full`).
 
+## Publishing (0.2.0)
+
+- Published as a **private** extension under the `ranplan` Marketplace publisher (`vss-extension.json`:
+  `publisher`, `public: false`). Extension id stays `md-commenter-pr`.
+- Version 0.2.0 is the first Ranplan release.
+- Support, licence and repository links point to this fork; the upstream privacy and terms pages
+  are 7Rush's and do not cover this build, so they were removed.
+
 Tests for these changes: `test/ranplan.test.ts` (run with `npm test`).
 New dependencies (exact versions): `dompurify` 3.2.4; for tests only, `jsdom` 25.0.1 and `@types/jsdom` 21.1.7.

@@ -7,7 +7,7 @@
     "build": "webpack --mode production && node scripts/check-bundle.js",
     "build:dev": "webpack --mode development && node scripts/check-bundle.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx test/sourceMap.test.ts",
+    "test": "tsx test/sourceMap.test.ts && tsx test/ranplan.test.ts",
     "package": "npm run build && tfx extension create --manifest-globs vss-extension.json --output-path out",
     "package:dev": "npm run build:dev && tfx extension create --manifest-globs vss-extension.json --overrides-file overrides.dev.json --output-path out",
     "publish": "npm run build && tfx extension publish --manifest-globs vss-extension.json --output-path out",
@@ -17,11 +17,13 @@
   "dependencies": {
     "azure-devops-extension-api": "^4.230.0",
     "azure-devops-extension-sdk": "^4.0.2",
+    "dompurify": "3.2.4",
     "markdown-it": "^14.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/jsdom": "21.1.7",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.19.43",
     "@types/react": "^18.3.12",
@@ -29,6 +31,7 @@
     "css-loader": "^7.1.2",
     "esbuild-loader": "^4.5.0",
     "html-webpack-plugin": "^5.6.3",
+    "jsdom": "25.0.1",
     "style-loader": "^4.0.0",
     "tfx-cli": "^0.21.0",
     "tsx": "^4.23.15",

@@ -84,7 +84,17 @@ const BASE_FILES: Record<string, string> = {
 
 const me = { displayName: "Fredy", id: "u1" };
 let nextId = 100;
-const threadsByFile: Record<string, ReviewThread[]> = {
+type MockThread = Omit<ReviewThread, "scope"> & { scope?: ReviewThread["scope"] };
+
+// Ranplan change (2026): a whole-PR thread, shown under "Not on a line" on every file.
+const prThreads: MockThread[] = [
+  {
+    id: 90, status: CommentThreadStatus.Active, scope: "pr", startLine: 0, endLine: 0,
+    comments: [{ id: 90, content: "General comment on the whole pull request.", author: { displayName: "Samuel" }, publishedDate: new Date("2026-10-08T12:00:00") } as any]
+  }
+];
+
+const threadsByFile: Record<string, MockThread[]> = {
   "/docs/architecture.md": [
     {
       id: 1, status: CommentThreadStatus.Active, startLine: 9, endLine: 9,
@@ -150,7 +160,7 @@ const delay = <T>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(v)
 
 export async function resolvePrContext(): Promise<PrContext> {
   return delay({
-    project: "p1", repositoryId: "r1", pullRequestId: 42, iterationId: 3, commitId: "abc123", baseCommitId: "base000",
+    project: "p1", repositoryId: "r1", pullRequestId: 42, iterationId: 3, commitId: "abc123", baseCommitId: "base000", userId: "u1",
     pullRequest: { repository: { name: "odentys-api", project: { name: "ODENTYS" } } } as any
   });
 }
@@ -177,7 +187,25 @@ export async function getImageObjectUrl(): Promise<string> {
 }
 
 export async function getFileThreads(_ctx: PrContext, path: string): Promise<ReviewThread[]> {
-  return delay([...(threadsByFile[path] ?? [])].map((t) => ({ ...t, comments: [...t.comments] })));
+  return delay(
+    [...(threadsByFile[path] ?? []), ...prThreads]
+      .map((t) => ({ ...t, scope: t.scope ?? "line", comments: t.comments.filter((c) => !c.isDeleted) }))
+      .filter((t) => t.comments.length > 0)
+  );
+}
+
+const allThreads = () => [...Object.values(threadsByFile).flat(), ...prThreads];
+
+export async function updateComment(_ctx: PrContext, threadId: number, commentId: number, content: string) {
+  const c = allThreads().find((x) => x.id === threadId)?.comments.find((x) => x.id === commentId);
+  if (c) c.content = content;
+  return delay({} as any);
+}
+
+export async function deleteComment(_ctx: PrContext, threadId: number, commentId: number) {
+  const c = allThreads().find((x) => x.id === threadId)?.comments.find((x) => x.id === commentId);
+  if (c) c.isDeleted = true;
+  await delay(null);
 }
 
 export async function createLineThread(ctx: PrContext, file: MdFile, anchor: SourceAnchor, content: string) {

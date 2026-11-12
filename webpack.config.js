@@ -30,7 +30,7 @@ module.exports = (_env, argv) => ({
       filename: "tab.html",
       chunks: ["tab"],
       templateContent: `<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MD Commenter</title></head>
 <body><div id="root"></div></body>
 </html>`

@@ -1,11 +1,11 @@
 {
   "manifestVersion": 1,
   "id": "md-commenter-pr",
-  "publisher": "7rush",
+  "publisher": "ranplan",
   "version": "0.1.17",
   "name": "MD Commenter",
   "description": "Adds an 'MD Commenter' tab to Pull Requests: read Markdown files rendered, click any paragraph, list item, table row or code block and leave a PR comment anchored to the exact source lines.",
-  "public": true,
+  "public": false,
   "categories": ["Azure Repos"],
   "tags": ["markdown", "pull request", "code review", "preview", "comments"],
   "targets": [{ "id": "Microsoft.VisualStudio.Services" }],

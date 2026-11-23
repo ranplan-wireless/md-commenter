@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import createDOMPurify from "dompurify";
-import { toReviewThreads } from "../src/services/threadSplit.ts";
+import { FIRST_ITERATION, threadReadIterations, toReviewThreads } from "../src/services/threadSplit.ts";
 import { sanitizeHtml } from "../src/markdown/sanitize.ts";
 import { createRenderer } from "../src/markdown/sourceMap.ts";
 
@@ -97,6 +97,36 @@ test("App calls no hook after its first early return", () => {
   const after = body.slice(firstReturn);
   const hookCall = after.match(/\buse[A-Z]\w*\(/);
   assert.equal(hookCall, null, `hook called after an early return: ${hookCall?.[0]}`);
+});
+
+// ---- 0.2.1: threads from older pushes are read at their current line -------------------------
+test("threads are read from the first iteration to the latest", () => {
+  assert.equal(FIRST_ITERATION, 1);
+  assert.deepEqual(threadReadIterations(3), [3, 1]);
+});
+test("adoClient passes a base iteration when reading threads", () => {
+  const call = src("src/services/adoClient.ts").match(/getThreads\(([^)]*)\)/);
+  assert.ok(call, "getThreads call not found");
+  assert.equal(call![1].split(",").length, 5, "getThreads needs iteration and baseIteration");
+  assert.match(src("src/services/adoClient.ts"), /threadReadIterations\(ctx\.iterationId\)/);
+});
+test("new threads are anchored from the same first iteration", () => {
+  assert.match(src("src/services/threadPayload.ts"), /firstComparingIteration: FIRST_ITERATION/);
+});
+
+// ---- 0.2.1: jumping from the comment list --------------------------------------------------------
+test("the whole card jumps to its block, but not from its own controls or a text selection", () => {
+  const view = src("src/components/ThreadView.tsx");
+  assert.match(view, /data-thread-id=\{thread\.id\}/);
+  assert.match(view, /onClick=\{onCardClick\}/);
+  assert.match(view, /closest\?\.\("button, a, textarea, input, select, label"\)/);
+  assert.match(view, /!sel\.isCollapsed/);
+  assert.match(view, /thread\.scope === "line"/);
+});
+test("a jump centres and flashes the block, and closing returns to the card", () => {
+  assert.match(src("src/components/MarkdownPreview.tsx"), /block: "center"/);
+  assert.match(src("src/components/CommentPanel.tsx"), /data-thread-id="\$\{returnToThreadId\}"/);
+  assert.match(src("src/styles/styles.css"), /@keyframes mdr-flash/);
 });
 
 console.log(`\n${passed} tests passed`);

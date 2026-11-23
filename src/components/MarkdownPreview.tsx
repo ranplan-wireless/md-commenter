@@ -17,6 +17,8 @@ interface Props {
   /** Deleted base-line runs to show inline (red, struck-through, inert) where they used to be. */
   removedLines: RemovedSegment[];
   selected: { startLine: number; endLine: number } | null;
+  /** Bumped by a jump from the comment list: centre the selected block and flash it. */
+  reveal?: number;
   onPick(pick: BlockPick): void;
   onRelativeLink(href: string): void;
   resolveImage(src: string): Promise<string>;
@@ -50,6 +52,14 @@ function blockForLine(root: HTMLElement, line: number): HTMLElement | null {
   return best;
 }
 
+/** Ranplan change (2026, 0.2.1): briefly highlights an element; restarts if it is already flashing. */
+export function flash(el: HTMLElement) {
+  el.classList.remove("mdr-flash");
+  void el.offsetWidth; // restart the animation
+  el.classList.add("mdr-flash");
+  window.setTimeout(() => el.classList.remove("mdr-flash"), 1600);
+}
+
 /** Highest block ancestor that is still a direct child of the preview root (keeps injected rows top-level). */
 function topLevelBlockForLine(root: HTMLElement, line: number): HTMLElement | null {
   let el = blockForLine(root, line);
@@ -61,7 +71,7 @@ function topLevelBlockForLine(root: HTMLElement, line: number): HTMLElement | nu
   return el;
 }
 
-export function MarkdownPreview({ html, threads, addedLines, removedLines, selected, onPick, onRelativeLink, resolveImage }: Props) {
+export function MarkdownPreview({ html, threads, addedLines, removedLines, selected, reveal, onPick, onRelativeLink, resolveImage }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const hoverRef = useRef<HTMLElement | null>(null);
 
@@ -167,6 +177,17 @@ export function MarkdownPreview({ html, threads, addedLines, removedLines, selec
     }
     (first as HTMLElement | null)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [html, selected]);
+
+  // Ranplan change (2026, 0.2.1): a jump from the comment list puts the block in the middle of the
+  // view and flashes it, so it is easy to spot. Runs after the effect above, so it wins.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !reveal) return;
+    const first = root.querySelector<HTMLElement>(".mdr-selected");
+    if (!first) return;
+    first.scrollIntoView({ block: "center", behavior: "smooth" });
+    root.querySelectorAll(".mdr-selected").forEach((el) => flash(el as HTMLElement));
+  }, [reveal]);
 
   const onMouseOver = (e: React.MouseEvent) => {
     const block = closestBlock(e.target as Node, rootRef.current!);

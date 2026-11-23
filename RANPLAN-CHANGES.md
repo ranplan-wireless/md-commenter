@@ -21,6 +21,18 @@ Every modified file carries a "Ranplan change(s) (2026)" note at the top.
 6. **Edit and delete your own comments.** Only on comments whose author is the signed-in user;
    Delete asks for confirmation. Same permissions as before (`vso.code`, `vso.threads_full`).
 
+## Changes in 0.2.1 (2026-11)
+
+7. **Comments stay on their lines after a push.** Threads were read with only the latest iteration,
+   so Azure DevOps returned the line each thread was posted on. After a push that adds or removes
+   lines, older comments sat on unrelated text. Threads are now read with a base iteration (the
+   first one, the same one new threads are anchored from), so Azure DevOps moves each thread to its
+   line in the latest push, as the Files tab does (`threadReadIterations` in `threadSplit.ts`).
+8. **Jump from the comment list.** The whole comment card, not only its line label, jumps to its
+   block; clicks on the card's own buttons, links and reply box, or while text is selected, don't.
+   The block is scrolled to the middle of the view and flashes briefly. Closing the block view (×
+   or Esc) scrolls the list back to the card the jump started from.
+
 ## Publishing (0.2.0)
 
 - Published as a **private** extension under the `ranplan` Marketplace publisher (`vss-extension.json`:

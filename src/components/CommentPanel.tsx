@@ -1,6 +1,8 @@
 // Ranplan changes (2026): a "Not on a line" section lists whole-PR, whole-file and removed-line
-// threads; edit/delete handlers and the user id are passed to each thread.
-import React, { Ref } from "react";
+// threads; edit/delete handlers and the user id are passed to each thread. 0.2.1: closing the block
+// view after a jump scrolls the list back to the card it started from.
+import React, { Ref, useEffect, useRef } from "react";
+import { flash } from "./MarkdownPreview";
 import { CommentThreadStatus } from "azure-devops-extension-api/Git/Git";
 import { ReviewThread } from "../services/adoClient";
 import { PickState } from "../types";
@@ -28,13 +30,30 @@ interface Props {
   onEdit(threadId: number, commentId: number, text: string): Promise<boolean>;
   onDelete(threadId: number, commentId: number): Promise<void>;
   onFocus(thread: ReviewThread): void;
+  /** The card a jump started from; when the block view closes, the list scrolls back to it. */
+  returnToThreadId?: number | null;
+  onReturned?(): void;
 }
 
 /** Right panel: either the picked block (excerpt + its threads + a new-comment draft) or the file's full thread list. */
 export function CommentPanel({
   pick, lines, pickThreads, visibleThreads, looseThreads, showResolved, userId,
-  draft, posting, draftRef, onClosePick, onDraftChange, onSubmit, onReply, onStatus, onEdit, onDelete, onFocus
+  draft, posting, draftRef, onClosePick, onDraftChange, onSubmit, onReply, onStatus, onEdit, onDelete, onFocus,
+  returnToThreadId, onReturned
 }: Props) {
+  const panelRef = useRef<HTMLElement>(null);
+
+  // Back in the list after a jump: bring the card that started it into view.
+  useEffect(() => {
+    if (pick || !returnToThreadId) return;
+    const card = panelRef.current?.querySelector<HTMLElement>(`[data-thread-id="${returnToThreadId}"]`);
+    if (card) {
+      card.scrollIntoView({ block: "center" });
+      flash(card);
+    }
+    onReturned?.();
+  }, [pick, returnToThreadId]);
+
   const threadView = (thread: ReviewThread) => (
     <ThreadView
       key={thread.id}
@@ -49,7 +68,7 @@ export function CommentPanel({
   );
 
   return (
-    <aside className="mdr-panel">
+    <aside className="mdr-panel" ref={panelRef}>
       {pick ? (
         <>
           <div className="mdr-panel-head">

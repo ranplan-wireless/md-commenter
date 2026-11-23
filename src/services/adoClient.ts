@@ -1,5 +1,6 @@
 // Ranplan changes (2026): English progress messages, current user id, edit/delete own comments,
-// and threads that are not on a line are returned too (see threadSplit.ts).
+// and threads that are not on a line are returned too (see threadSplit.ts). 0.2.1: threads are read
+// with a base iteration, so those posted on an older push show at their current line.
 import * as SDK from "azure-devops-extension-sdk";
 import { getClient } from "azure-devops-extension-api";
 import { CommonServiceIds, IHostNavigationService, ILocationService, IProjectPageService } from "azure-devops-extension-api/Common/CommonServices";
@@ -17,7 +18,7 @@ import {
 } from "azure-devops-extension-api/Git/Git";
 import { SourceAnchor } from "../markdown/sourceMap";
 import { buildLineThread } from "./threadPayload";
-import { ReviewThread, toReviewThreads } from "./threadSplit";
+import { ReviewThread, threadReadIterations, toReviewThreads } from "./threadSplit";
 import { t } from "../i18n";
 
 export type { ReviewThread };
@@ -164,7 +165,8 @@ export async function getImageObjectUrl(ctx: PrContext, path: string): Promise<s
  * Threads not on a current line are kept, with their scope, so the panel can list them.
  */
 export async function getFileThreads(ctx: PrContext, path: string): Promise<ReviewThread[]> {
-  const threads = await git().getThreads(ctx.repositoryId, ctx.pullRequestId, ctx.project, ctx.iterationId);
+  const [iteration, baseIteration] = threadReadIterations(ctx.iterationId);
+  const threads = await git().getThreads(ctx.repositoryId, ctx.pullRequestId, ctx.project, iteration, baseIteration);
   return toReviewThreads(threads, path);
 }
 

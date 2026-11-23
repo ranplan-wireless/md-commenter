@@ -1,5 +1,7 @@
 import { CommentThreadStatus, CommentType, GitPullRequestCommentThread } from "azure-devops-extension-api/Git/Git";
 import { SourceAnchor } from "../markdown/sourceMap";
+// Ranplan change (2026, 0.2.1): the first iteration comes from threadSplit.ts, shared with thread reads.
+import { FIRST_ITERATION } from "./threadSplit";
 
 /**
  * Body for POST .../pullRequests/{id}/threads, anchored like a comment made in the diff view:
@@ -22,7 +24,7 @@ export function buildLineThread(
     },
     pullRequestThreadContext: {
       changeTrackingId,
-      iterationContext: { firstComparingIteration: 1, secondComparingIteration: latestIterationId }
+      iterationContext: { firstComparingIteration: FIRST_ITERATION, secondComparingIteration: latestIterationId }
     }
   } as unknown as GitPullRequestCommentThread;
 }

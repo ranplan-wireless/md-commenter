@@ -1,0 +1,90 @@
+{
+  "source": "A real Azure DevOps PR thread, posted on iteration 1 at line 110 of a Markdown file whose line is 115 in iteration 3; read with $iteration=3 and each $baseIteration. Path, ids and text replaced.",
+  "iteration": 3,
+  "base1": {
+    "id": 101,
+    "status": "active",
+    "isDeleted": false,
+    "threadContext": {
+      "filePath": "/docs/design.md",
+      "leftFileStart": {
+        "line": 110,
+        "offset": 1
+      },
+      "leftFileEnd": {
+        "line": 110,
+        "offset": 205
+      }
+    },
+    "pullRequestThreadContext": {
+      "changeTrackingId": 1,
+      "iterationContext": {
+        "firstComparingIteration": 1,
+        "secondComparingIteration": 1
+      },
+      "trackingCriteria": {
+        "firstComparingIteration": 1,
+        "secondComparingIteration": 3,
+        "origFilePath": "/docs/design.md",
+        "origRightFileStart": {
+          "line": 110,
+          "offset": 1
+        },
+        "origRightFileEnd": {
+          "line": 110,
+          "offset": 205
+        }
+      }
+    },
+    "comments": [
+      {
+        "id": 1,
+        "content": "comment 1",
+        "commentType": 1
+      }
+    ]
+  },
+  "base0": {
+    "id": 101,
+    "status": "active",
+    "isDeleted": false,
+    "threadContext": {
+      "filePath": "/docs/design.md",
+      "rightFileStart": {
+        "line": 115,
+        "offset": 1
+      },
+      "rightFileEnd": {
+        "line": 115,
+        "offset": 2147483647
+      }
+    },
+    "pullRequestThreadContext": {
+      "changeTrackingId": 1,
+      "iterationContext": {
+        "firstComparingIteration": 1,
+        "secondComparingIteration": 1
+      },
+      "trackingCriteria": {
+        "firstComparingIteration": 3,
+        "secondComparingIteration": 3,
+        "origFilePath": "/docs/design.md",
+        "origRightFileStart": {
+          "line": 110,
+          "offset": 1
+        },
+        "origRightFileEnd": {
+          "line": 110,
+          "offset": 205
+        }
+      }
+    },
+    "comments": [
+      {
+        "id": 1,
+        "content": "comment 1",
+        "commentType": 1
+      }
+    ]
+  }
+}

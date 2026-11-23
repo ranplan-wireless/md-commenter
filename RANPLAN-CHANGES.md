@@ -25,11 +25,14 @@ Every modified file carries a "Ranplan change(s) (2026)" note at the top.
 
 7. **Comments stay on their lines after a push.** Threads were read with only the latest iteration,
    so Azure DevOps returned the line each thread was posted on. After a push that adds or removes
-   lines, older comments sat on unrelated text. Threads are now read with a base iteration (the
-   first one, the same one new threads are anchored from), so Azure DevOps moves each thread to its
-   line in the latest push, as the Files tab does (`threadReadIterations` in `threadSplit.ts`).
+   lines, older comments sat on unrelated text. Threads are now read with base iteration 0 (the
+   PR's merge base), so Azure DevOps moves each thread to its line in the latest push, as the Files
+   tab does (`threadReadIterations` in `threadSplit.ts`). Base 1 is wrong: a thread posted on push 1
+   then comes back on the old side only and would be listed as removed (found in review of PR #3,
+   checked on two internal design PRs; a captured response is in `test/fixtures/`).
 8. **Jump from the comment list.** The whole comment card, not only its line label, jumps to its
    block; clicks on the card's own buttons, links and reply box, or while text is selected, don't.
+   A card with an open reply, edit or delete box doesn't jump, so a half-typed reply isn't lost.
    The block is scrolled to the middle of the view and flashes briefly. Closing the block view (×
    or Esc) scrolls the list back to the card the jump started from.
 

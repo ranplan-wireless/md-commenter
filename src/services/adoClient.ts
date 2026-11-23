@@ -1,6 +1,6 @@
 // Ranplan changes (2026): English progress messages, current user id, edit/delete own comments,
 // and threads that are not on a line are returned too (see threadSplit.ts). 0.2.1: threads are read
-// with a base iteration, so those posted on an older push show at their current line.
+// with base iteration 0, so those posted on an older push show at their current line.
 import * as SDK from "azure-devops-extension-sdk";
 import { getClient } from "azure-devops-extension-api";
 import { CommonServiceIds, IHostNavigationService, ILocationService, IProjectPageService } from "azure-devops-extension-api/Common/CommonServices";

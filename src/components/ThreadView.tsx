@@ -89,9 +89,11 @@ export function ThreadView({ thread, userId, onReply, onStatus, onEdit, onDelete
     });
 
   // The whole card jumps to its block, except clicks on its own controls or while text is selected.
+  // A card with an open reply, edit or delete box stays put: jumping remounts it and loses the draft.
   const canFocus = thread.scope === "line" && Boolean(onFocus);
   const onCardClick = (e: React.MouseEvent) => {
     if (!canFocus) return;
+    if (replying || editingId !== undefined || confirmingId !== undefined) return;
     if ((e.target as Element).closest?.("button, a, textarea, input, select, label")) return;
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed) return;

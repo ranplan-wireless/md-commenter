@@ -1,5 +1,6 @@
 // Ranplan changes (2026): comment HTML goes through sanitizeHtml; the author can edit or delete
 // their own comments; threads not on a current line show where they sit instead of a line link.
+// 0.2.1: the whole card (not only the line label) jumps to its block.
 import React, { useState } from "react";
 import { CommentThreadStatus } from "azure-devops-extension-api/Git/Git";
 import { ReviewThread } from "../services/adoClient";
@@ -87,8 +88,24 @@ export function ThreadView({ thread, userId, onReply, onStatus, onEdit, onDelete
       setConfirmingId(undefined);
     });
 
+  // The whole card jumps to its block, except clicks on its own controls or while text is selected.
+  // A card with an open reply, edit or delete box stays put: jumping remounts it and loses the draft.
+  const canFocus = thread.scope === "line" && Boolean(onFocus);
+  const onCardClick = (e: React.MouseEvent) => {
+    if (!canFocus) return;
+    if (replying || editingId !== undefined || confirmingId !== undefined) return;
+    if ((e.target as Element).closest?.("button, a, textarea, input, select, label")) return;
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return;
+    onFocus!(thread);
+  };
+
   return (
-    <div className={`mdr-thread ${open ? "is-open" : "is-closed"}`}>
+    <div
+      className={`mdr-thread ${open ? "is-open" : "is-closed"}${canFocus ? " is-clickable" : ""}`}
+      data-thread-id={thread.id}
+      onClick={onCardClick}
+    >
       <div className="mdr-thread-head">
         {thread.scope === "line" ? (
           <button className="mdr-link" onClick={() => onFocus?.(thread)} title={t("goToBlock")}>

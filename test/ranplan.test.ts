@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import createDOMPurify from "dompurify";
-import { toReviewThreads } from "../src/services/threadSplit.ts";
+import { FIRST_ITERATION, threadReadIterations, toReviewThreads } from "../src/services/threadSplit.ts";
 import { sanitizeHtml } from "../src/markdown/sanitize.ts";
 import { createRenderer } from "../src/markdown/sourceMap.ts";
 
@@ -97,6 +97,55 @@ test("App calls no hook after its first early return", () => {
   const after = body.slice(firstReturn);
   const hookCall = after.match(/\buse[A-Z]\w*\(/);
   assert.equal(hookCall, null, `hook called after an early return: ${hookCall?.[0]}`);
+});
+
+// ---- 0.2.1: threads from older pushes are read at their current line -------------------------
+// A real thread posted on push 1, as Azure DevOps returns it with $iteration=3 and each base.
+const tracking = JSON.parse(readFileSync(new URL("./fixtures/thread-tracking.json", import.meta.url), "utf8"));
+const FIXTURE_PATH = "/docs/design.md";
+const readWithBase = (base: number) => toReviewThreads([tracking[`base${base}`]], FIXTURE_PATH)[0];
+
+test("threads are read with the latest iteration and base 0", () => {
+  const [iteration, base] = threadReadIterations(3);
+  assert.equal(iteration, 3);
+  assert.equal(base, 0);
+  assert.ok(`base${base}` in tracking, "the fixture holds the response for the base the code uses");
+});
+test("with base 0, a thread from push 1 is on its current line", () => {
+  const th = readWithBase(threadReadIterations(3)[1]);
+  assert.deepEqual([th.scope, th.startLine, th.endLine], ["line", 115, 115]);
+});
+test("with base 1, the same thread would be wrongly listed as removed", () => {
+  const th = readWithBase(1);
+  assert.deepEqual([th.scope, th.startLine], ["removed", 110]);
+});
+test("new threads are still anchored from iteration 1", () => assert.equal(FIRST_ITERATION, 1));
+test("adoClient passes a base iteration when reading threads", () => {
+  const call = src("src/services/adoClient.ts").match(/getThreads\(([^)]*)\)/);
+  assert.ok(call, "getThreads call not found");
+  assert.equal(call![1].split(",").length, 5, "getThreads needs iteration and baseIteration");
+  assert.match(src("src/services/adoClient.ts"), /threadReadIterations\(ctx\.iterationId\)/);
+});
+test("new threads are anchored from the same first iteration", () => {
+  assert.match(src("src/services/threadPayload.ts"), /firstComparingIteration: FIRST_ITERATION/);
+});
+
+// ---- 0.2.1: jumping from the comment list --------------------------------------------------------
+test("the whole card jumps to its block, but not from its own controls or a text selection", () => {
+  const view = src("src/components/ThreadView.tsx");
+  assert.match(view, /data-thread-id=\{thread\.id\}/);
+  assert.match(view, /onClick=\{onCardClick\}/);
+  assert.match(view, /closest\?\.\("button, a, textarea, input, select, label"\)/);
+  assert.match(view, /!sel\.isCollapsed/);
+  assert.match(view, /thread\.scope === "line"/);
+});
+test("a card with an open reply, edit or delete box doesn't jump, so a draft isn't lost", () => {
+  assert.match(src("src/components/ThreadView.tsx"), /if \(replying \|\| editingId !== undefined \|\| confirmingId !== undefined\) return;/);
+});
+test("a jump centres and flashes the block, and closing returns to the card", () => {
+  assert.match(src("src/components/MarkdownPreview.tsx"), /block: "center"/);
+  assert.match(src("src/components/CommentPanel.tsx"), /data-thread-id="\$\{returnToThreadId\}"/);
+  assert.match(src("src/styles/styles.css"), /@keyframes mdr-flash/);
 });
 
 console.log(`\n${passed} tests passed`);

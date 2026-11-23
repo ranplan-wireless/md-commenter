@@ -1,6 +1,7 @@
 // Ranplan changes (2026): all hooks run before the early returns (a blank tab otherwise);
 // Refresh re-reads the PR and keeps the open file; the document HTML is sanitised; threads not
-// on a current line go to their own list; edit/delete of own comments.
+// on a current line go to their own list; edit/delete of own comments. 0.2.1: a jump from the
+// comment list centres and flashes the block, and closing the block view returns to that card.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeAnchor, resolveRepoPath, splitLines } from "../markdown/sourceMap";
 import { md } from "../markdown/renderer";
@@ -103,6 +104,7 @@ export function App() {
   );
 
   const onPick = (p: BlockPick) => {
+    setReturnTo(null); // picked in the document, not from the list
     const anchor = computeAnchor(lines, p.startLine, p.endLine, p.selectedText);
     setPick({ startLine: p.startLine, endLine: p.endLine, anchor });
     window.setTimeout(() => draftRef.current?.focus(), 0);
@@ -115,8 +117,15 @@ export function App() {
     else flash(t("linkNotInPr"));
   };
 
-  const focusThread = (th: ReviewThread) =>
+  // A jump from the comment list: centre and flash the block, and remember the card so closing the
+  // block view brings the list back to it.
+  const [reveal, setReveal] = useState(0);
+  const [returnTo, setReturnTo] = useState<number | null>(null);
+  const focusThread = (th: ReviewThread) => {
     setPick({ startLine: th.startLine, endLine: th.endLine, anchor: computeAnchor(lines, th.startLine, th.endLine) });
+    setReveal((n) => n + 1);
+    if (!pick) setReturnTo(th.id);
+  };
 
   const onSubmit = async () => {
     if (!file || !pick || !draft.trim()) return;
@@ -171,6 +180,7 @@ export function App() {
             addedLines={addedLines}
             removedLines={removedLines}
             selected={pick ? { startLine: pick.anchor.startLine, endLine: pick.anchor.endLine } : null}
+            reveal={reveal}
             onPick={onPick}
             onRelativeLink={onRelativeLink}
             resolveImage={resolveImage}
@@ -199,6 +209,8 @@ export function App() {
         onEdit={editComment}
         onDelete={removeComment}
         onFocus={focusThread}
+        returnToThreadId={returnTo}
+        onReturned={() => setReturnTo(null)}
       />
 
       {toast && <div className="mdr-toast">{toast}</div>}

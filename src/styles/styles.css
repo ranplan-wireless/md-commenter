@@ -176,6 +176,13 @@ body { background: var(--mdr-bg); color: var(--mdr-fg); font: 14px/1.5 var(--mdr
 .mdr-thread { border: 1px solid var(--mdr-border); border-radius: var(--mdr-radius); padding: 8px 10px; }
 .mdr-thread.is-open { border-left: 3px solid var(--mdr-thread); }
 .mdr-thread.is-closed { opacity: 0.75; }
+/* Ranplan change (2026, 0.2.1): the whole card jumps to its block; a jump flashes its target. */
+.mdr-thread.is-clickable { cursor: pointer; }
+.mdr-thread.is-clickable:hover { background: var(--mdr-hover); }
+.mdr-thread.is-clickable textarea { cursor: auto; }
+@keyframes mdr-flash { 0%, 40% { box-shadow: 0 0 0 3px rgba(var(--mdr-accent-rgb), 0.6); } 100% { box-shadow: 0 0 0 3px rgba(var(--mdr-accent-rgb), 0); } }
+.mdr-flash { animation: mdr-flash 1.6s ease-out; }
+@media (prefers-reduced-motion: reduce) { .mdr-flash { animation: none; outline: 2px solid var(--mdr-accent); } }
 .mdr-thread-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .mdr-pill { font-size: 11px; padding: 0 8px; border-radius: 9px; line-height: 18px; }
 .pill-open { background: var(--mdr-thread); color: #000; }
